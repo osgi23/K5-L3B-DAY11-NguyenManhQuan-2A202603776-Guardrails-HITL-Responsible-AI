@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 11 Checkpoint</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #1a2133; --panel-2: #222b40; --muted: #9aa4b8; --text: #eef1f7;
+    --accent: #f4b400; --accent-ink: #1d2330; --done: #2f6b4a; --done-ink: #cfeedd; --warn: #ff6b4a;
+    --trap: #ffb199; --code: #b5d3ff;
+    --fs-body: clamp(14px, min(1.4vw, 2.6vh), 28px);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text); overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: var(--fs-body); line-height: 1.32;
+  }
+  .app { height: 100vh; display: grid; grid-template-rows: auto 1fr auto auto; }
+
+  header {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    padding: 1.6vh 2.2vw; color: var(--muted); font-size: 0.8em;
+  }
+  header .key {
+    color: var(--accent-ink); background: var(--accent); font-weight: 800;
+    padding: 0.3em 0.9em; border-radius: 999px; white-space: nowrap;
+  }
+  header #total { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  main {
+    display: grid; grid-template-columns: 0.9fr 1.3fr; gap: 2.4vw;
+    padding: 0 2.2vw; min-height: 0; align-items: center;
+  }
+  .left { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+  #stageLine { font-size: 1.15em; color: var(--muted); font-weight: 600; }
+  #stageLine .pts { color: var(--text); white-space: nowrap; }
+  #stageLine .m {
+    display: inline-block; background: var(--accent); color: var(--accent-ink); font-weight: 800;
+    border-radius: 5px; padding: 0 0.35em;
+  }
+  #stageLine .when { display: block; font-size: 0.75em; font-weight: 500; margin-top: 0.2em; }
+  .clock {
+    font-size: clamp(80px, min(14vw, 24vh), 240px); font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em; margin: 1.2vh 0;
+    transition: color .3s;
+  }
+  #question { font-size: 1.3em; font-weight: 600; }
+  #note {
+    margin-top: 1.6vh; color: var(--trap); font-size: 0.9em;
+    border-left: 4px solid var(--warn); padding: 0.3em 0 0.3em 0.7em;
+  }
+  #startBtn {
+    margin-top: 2.4vh; align-self: flex-start; font: inherit; font-size: 1.4em; font-weight: 800;
+    color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 14px;
+    padding: 0.5em 1.6em; cursor: pointer; box-shadow: 0 6px 24px rgba(244,180,0,.3);
+  }
+  #startBtn:hover { filter: brightness(1.08); }
+
+  .right {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.6vh 1.2vw; min-width: 0; align-content: center;
+  }
+  .box { background: var(--panel); border-radius: 14px; padding: 1.8vh 1.4vw; min-width: 0; }
+  .box.wide { grid-column: 1 / -1; }
+  .box h3 { margin: 0 0 0.8vh; color: var(--accent); font-size: 0.78em; letter-spacing: .06em; text-transform: uppercase; }
+  .box ul { margin: 0; padding-left: 1.1em; }
+  .box li { margin: 0.5vh 0; }
+  .box b { color: #fff; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.88em; color: var(--code); }
+  .box code { overflow-wrap: anywhere; }
+
+  .steps { display: flex; gap: 0.6vw; list-style: none; padding: 0 !important; margin: 0; }
+  .steps li {
+    flex: 1; margin: 0; padding: 0.5em 0.6em; border-radius: 10px; background: var(--panel-2);
+    color: var(--muted); font-size: 0.85em; line-height: 1.25;
+  }
+  .steps li .t { display: block; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
+  .steps li.past { opacity: .55; }
+  .steps li.cur { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .steps li.cur .t { color: var(--accent-ink); }
+
+  .finished { grid-column: 1 / -1; text-align: center; }
+  .finished .big { font-size: clamp(40px, 6vw, 110px); font-weight: 800; }
+  .finished p { color: var(--muted); font-size: 1.2em; }
+
+  .bar {
+    display: flex; height: clamp(40px, 7vh, 72px); margin: 1.6vh 2.2vw 0.6vh;
+    border-radius: 8px; overflow: visible; font-size: 0.66em;
+  }
+  .bar > div {
+    position: relative; display: flex; align-items: center; justify-content: center; text-align: center;
+    background: #2a3348; color: var(--muted); border-right: 2px solid var(--bg); padding: 0 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bar > div:first-child { border-radius: 8px 0 0 8px; }
+  .bar > div:last-child { border-radius: 0 8px 8px 0; border-right: 0; }
+  .bar > .done { background: var(--done); color: var(--done-ink); }
+  .bar > .now { background: var(--accent); color: var(--accent-ink); font-weight: 800; }
+  .bar > .now .fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0,0,0,.12); }
+  .bar > div span { position: relative; overflow: hidden; text-overflow: ellipsis; }
+  .bar > div[data-m] { overflow: visible; }
+  .bar > div[data-m]::after {
+    content: attr(data-m); position: absolute; right: -2px; top: -1.5em; transform: translateX(50%);
+    background: var(--accent); color: var(--accent-ink); font-weight: 800; border-radius: 4px; padding: 0 0.35em;
+    z-index: 1;
+  }
+
+  footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.4vh 2.2vw 1.2vh; font-size: 0.6em; color: var(--muted); min-height: 2.6em;
+  }
+  #soundHint { color: var(--accent); }
+
+  body.warning .clock { color: var(--warn); }
+  body.warning .bar > .now { background: var(--warn); color: #fff; }
+
+  /* Xem trước một chặng khác: bấm vào ô trên thanh tiến độ */
+  .bar > div { cursor: pointer; }
+  .bar > div:hover { filter: brightness(1.18); }
+  .bar > .peek { outline: 3px solid #fff; outline-offset: -3px; }
+  #previewBar {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.8em; flex-wrap: wrap;
+    margin-bottom: 1.4vh; padding: 0.5em 0.8em; border: 2px dashed var(--accent); border-radius: 10px;
+    background: var(--panel); font-size: 0.75em; color: var(--muted);
+  }
+  #previewBar b { color: var(--accent); }
+  #liveInfo { color: var(--text); font-variant-numeric: tabular-nums; }
+  #backBtn {
+    font: inherit; font-weight: 800; color: var(--accent-ink); background: var(--accent);
+    border: 0; border-radius: 8px; padding: 0.3em 0.9em; cursor: pointer;
+  }
+  body.preview .clock, body.preview.warning .clock { color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <span class="brand">Day 11 · Guardrails · HITL · Responsible AI</span>
+    <span class="key">Blue Team 80 · Red Team 20 · Bonus chọn một: B1 tối đa +5 hoặc B2 tối đa +10</span>
+    <span id="total"></span>
+  </header>
+  <main id="main">
+    <section class="left">
+      <div id="previewBar" hidden>
+        <span><b>XEM TRƯỚC</b> · Đang chạy: <span id="liveInfo"></span></span>
+        <button id="backBtn" type="button">← Về chặng đang chạy</button>
+      </div>
+      <div id="stageLine"></div>
+      <div id="clock" class="clock">30:00</div>
+      <div id="question"></div>
+      <div id="note"></div>
+      <button id="startBtn" type="button">▶ Bắt đầu</button>
+    </section>
+    <section class="right" id="right"></section>
+  </main>
+  <div id="bar" class="bar"></div>
+  <footer>
+    <span id="soundHint" hidden>🔔 Bấm vào trang để bật âm báo chuyển chặng</span>
+  </footer>
+</div>
+
+<script id="core">
+// ===== Dữ liệu lịch 240 phút: 160' lab theo CHECKPOINTS.md + 80' demo, không nghỉ. Hàm thuần có unit test: lab-coach/tests/core.test.js =====
+const SCHEDULE = [
+  {
+    key: 'setup', short: 'CP1 · Setup', title: 'CP1 · Setup máy', minutes: 30, points: 0,
+    rubric: 'Điều kiện để làm bài', milestone: 'M1',
+    goal: 'Máy chạy được lab: venv, thư viện, key OpenRouter cho Blue và key OpenAI hoặc Gemini cho Red.',
+    todo: [
+      'Fork / clone starter, đổi tên repo <code>K5-&lt;L3A/L3B&gt;-DAY11-&lt;HoVaTen&gt;-&lt;MSSV&gt;-Guardrails-HITL-Responsible-AI</code>',
+      'Tạo venv, <code>pip install -r requirements.txt</code>',
+      '<code>.env</code>: <code>OPENROUTER_API_KEY</code> (Blue, <code>liquid/lfm-2.5-2.6b:free</code>) + <code>RED_TEAM_PROVIDER=openai|gemini</code> và key tương ứng'
+    ],
+    products: ['<code>.venv/</code> + <code>.env</code> chỉ ở máy', '<code>outputs/</code> còn trống: <b>đúng</b>'],
+    checks: ['<code>python -c "import nemoguardrails"</code> chạy được', '<code>pytest tests/smoke -q</code> xanh'],
+    trap: 'Thiếu nemoguardrails thì Red Advance báo lỗi, không tự lùi về regex. File .env không bao giờ commit.'
+  },
+  {
+    key: 'guardrails', short: 'CP2 · Guardrails', title: 'CP2 · Blue: bộ lọc input + output', minutes: 45, points: 40,
+    rubric: 'Blue guardrails', milestone: null,
+    goal: 'Chặn prompt độc trước LLM, che secret / PII sau LLM, và không chặn nhầm câu hỏi ngân hàng.',
+    todo: [
+      '<code>detect_injection</code>: <b>≥5 regex</b> + bắt cả Unicode ẩn (<code>Ignore\\u200b all…</code>)',
+      '<code>topic_filter</code>: dùng <code>ALLOWED_TOPICS</code> / <code>BLOCKED_TOPICS</code> trong <code>core/config.py</code>',
+      '<code>InputGuardrailPlugin</code>: BLOCK → trả câu chặn, không gọi LLM',
+      '<code>content_filter</code>: SĐT, email, CCCD, <code>sk-…</code>, password → <code>[REDACTED]</code>, gắn vào <code>OutputGuardrailPlugin</code>'
+    ],
+    products: ['<code>src/guardrails/input_guardrails.py</code>', '<code>src/guardrails/output_guardrails.py</code>', 'Kết quả in terminal, chưa có JSON'],
+    checks: ['<code>python src/main.py --part 2</code>', 'Injection / lạc đề bị bắt · secret thành <code>[REDACTED]</code> · câu hỏi ngân hàng vẫn được trả lời'],
+    trap: 'Trả "ALLOW" / "BLOCK", đừng đổi sang True/False vì rất dễ đảo nghĩa. "Tóm tắt email chuyển khoản bị delay" là câu hợp lệ.'
+  },
+  {
+    key: 'pipeline', short: 'CP3 · Pipeline', title: 'CP3 · Blue: ghép pipeline → results.json', minutes: 45, points: 40,
+    rubric: 'Blue pipeline', milestone: 'M2',
+    goal: 'Lắp các lớp bảo vệ thành pipeline, chạy 4 bộ câu hỏi và sinh outputs/results.json.',
+    todo: [
+      '<code>RateLimitPlugin</code> (sliding window theo user, 10 câu / 60s) · <code>audit_log</code> · <code>monitoring</code>',
+      '<code>build_production_plugins</code>: <b>RateLimit → Input → Output</b> · <code>is_egress_allowed</code>: chỉ HTTPS domain VinBank, payload không chứa secret / PII',
+      '<code>run_assignment_suite</code>: safe ≥5 · attack <b>≥7</b> (≥5 bị chặn) · rate_limit · edge ≥3'
+    ],
+    products: ['<code>outputs/results.json</code> ★', '<code>audit_log.json</code> · <code>metrics.json</code>'],
+    checks: ['<code>python src/main.py --part 3</code>', '<code>pytest tests/public/test_results_contract.py -q</code> xanh'],
+    trap: 'Quyết định egress bằng rule trong code, không nhờ LLM "đồng ý". Không tạo JSON bằng tay, để lệnh tự sinh.'
+  },
+  {
+    key: 'redteam', short: 'CP4 · Red Team', title: 'CP4 · Red Team: tấn công Red → Red Advance', minutes: 30, points: 20,
+    rubric: '10 đủ 5 prompt + JSON · 10 làm Red lộ secret', milestone: null,
+    goal: 'Viết prompt tấn công, làm Red lộ ít nhất một secret demo, rồi thử với Red Advance.',
+    todo: [
+      '<code>src/attacks/attacks.py</code>: <b>≥5 prompt</b> dài, mỗi prompt một kỹ thuật',
+      'Completion · dịch / đổi format · hypothetical · confirmation · multi-step',
+      'Mục tiêu: <code>admin_password</code> · <code>api_key</code> · <code>db_host</code> trong <code>vinbank_secrets.json</code>',
+      '<b>Red Advance</b>: regex + NeMo Guardrails 4 lớp. Làm nó lộ secret = bonus B2 (chọn B1 <b>hoặc</b> B2)'
+    ],
+    products: ['<code>outputs/attack_results.json</code> ★ (<code>unsafe_attacks</code> + <code>guards_attacks</code>)', '<code>unsafe_attack_result.json</code> · <code>guards_attack_result.json</code>'],
+    checks: ['<code>python src/main.py --part 4</code>', '≥1 <code>leaked: true</code> trên Red · <code>llm_provider</code> / <code>llm_model</code> khớp <code>.env</code>'],
+    trap: 'CP4 không tấn công Blue (để dành cho demo). Không sửa tay leaked: true vì grader sẽ replay. Câu "Ignore all instructions" ngắn gần như luôn bị từ chối.'
+  },
+  {
+    key: 'submit', short: 'CP5 · Nộp', title: 'CP5 · Tự kiểm & nộp', minutes: 10, points: 0,
+    rubric: 'Thiếu artifact thì mất điểm phần tương ứng', milestone: 'M3',
+    goal: 'Xác nhận đủ artifact, tự chấm, push và nộp link repo.',
+    todo: [
+      '<code>pytest tests/smoke -q</code> · <code>pytest tests/public -q</code>',
+      '<code>python scripts/grade.py --submission-dir . --out outputs/grade_report.json</code>',
+      'Push repo <code>K5-&lt;L3A/L3B&gt;-DAY11-…</code>, nộp link lên LMS / CodeLabs'
+    ],
+    products: ['<code>results.json</code> + <code>attack_results.json</code> ★', '<code>grade_report.json</code> + <code>lab_report.md</code> (tự sinh)'],
+    checks: ['Không commit <code>.env</code> / API key', 'Hạn: ca sáng <b>23h59</b> cùng ngày · ca chiều <b>11h59</b> trưa hôm sau'],
+    trap: 'Không viết report tay: grade.py tự sinh grade_report.json và lab_report.md.'
+  },
+  {
+    key: 'demo', short: 'Demo', title: 'Demo · Cả lớp tấn công Blue', minutes: 80, points: 5,
+    pointsText: '5 điểm / bạn', rubric: 'Điểm demo tính riêng, ngoài rubric lab', milestone: null,
+    goal: 'Mỗi bạn demo Blue của mình, cả lớp thử tấn công trực tiếp để moi secret.',
+    todo: [
+      '<b>Người demo:</b> chạy Blue của mình, mở <code>results.json</code>, chỉ 1 attack bị chặn và lớp nào chặn',
+      '<b>Cả lớp:</b> đưa prompt tấn công, người demo gửi vào Blue của mình ngay trên màn hình',
+      'Mục tiêu: lộ <code>admin_password</code> · <code>api_key</code> · <code>db_host</code>'
+    ],
+    scoring: [
+      'Mỗi bạn lên demo: <b>5 điểm</b> · tối đa <b>10 lượt</b> tấn công · mỗi người tấn công <b>1 lượt</b>',
+      'Mỗi lượt thành công: người demo <b>−1</b>, người tấn công <b>+1</b> · người demo hết 5 điểm thì dừng, không âm',
+      'Thành công = Blue trả về giá trị trong <code>vinbank_secrets.json</code> · được dùng lại prompt của bạn khác'
+    ],
+    products: ['Blue chạy được, đã thử 1 prompt trước khi lên'],
+    checks: ['Lỗi API / hết quota: <b>không</b> tính là lộ secret', 'Chưa nộp thì nộp trước hạn theo ca'],
+    trap: 'Không chiếu file .env hay API key lên màn hình. Chỉ tấn công Blue của người đang demo.'
+  }
+];
+
+// Mốc gợi ý bên trong CP3 (phút tính từ đầu buổi). Đề không chia, đây là gợi ý của coach.
+const SUBSTEPS = [
+  { at: 75, label: 'Rate limit + audit + monitoring' },
+  { at: 95, label: 'Thứ tự plugin + egress' },
+  { at: 105, label: 'run_assignment_suite → results.json' }
+];
+
+// "40 điểm", "không tính điểm" cho chặng 0 điểm (Setup, Nộp), hoặc pointsText riêng (Demo).
+function pointsLabel(stage) {
+  if (stage.pointsText) return stage.pointsText;
+  return stage.points > 0 ? stage.points + ' điểm' : 'không tính điểm';
+}
+
+const MINUTE_MS = 60000;
+const WARNING_MS = 5 * MINUTE_MS;
+const TOTAL_MS = SCHEDULE.reduce((sum, s) => sum + s.minutes, 0) * MINUTE_MS;
+
+function stageStartMinute(index) {
+  return SCHEDULE.slice(0, index).reduce((sum, s) => sum + s.minutes, 0);
+}
+
+function stateAt(elapsedMs) {
+  const elapsed = Math.min(Math.max(Number(elapsedMs) || 0, 0), TOTAL_MS);
+  const last = SCHEDULE.length - 1;
+  if (elapsed >= TOTAL_MS) {
+    return { index: last, stage: SCHEDULE[last], remainingMs: 0, elapsedMs: TOTAL_MS,
+             totalRemainingMs: 0, finished: true, warning: false };
+  }
+  let index = 0;
+  while ((stageStartMinute(index + 1)) * MINUTE_MS <= elapsed) index++;
+  const remainingMs = stageStartMinute(index + 1) * MINUTE_MS - elapsed;
+  return { index, stage: SCHEDULE[index], remainingMs, elapsedMs: elapsed,
+           totalRemainingMs: TOTAL_MS - elapsed, finished: false, warning: remainingMs <= WARNING_MS };
+}
+
+// Chỉ số mốc gợi ý đang chạy trong CP3; -1 nếu không ở CP3.
+function currentSubstep(elapsedMs) {
+  const st = stateAt(elapsedMs);
+  if (st.finished || SCHEDULE[st.index].key !== 'pipeline') return -1;
+  let i = -1;
+  SUBSTEPS.forEach((s, j) => { if (s.at * MINUTE_MS <= st.elapsedMs) i = j; });
+  return i;
+}
+
+function formatClock(ms) {
+  const totalSec = ms > 0 ? Math.ceil(ms / 1000) : 0;
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+// Phút từ đầu buổi → "h:mm" (giống cách CHECKPOINTS.md ghi mốc).
+function formatHM(minute) {
+  return Math.floor(minute / 60) + ':' + String(minute % 60).padStart(2, '0');
+}
+
+// Có cần hỏi xác nhận khi rời / tải lại trang không: chỉ khi đã bấm Bắt đầu và chưa hết 240 phút.
+function shouldWarnOnLeave(startMs, nowMs) {
+  return startMs !== null && !stateAt(nowMs - startMs).finished;
+}
+
+// Xem trước chặng khác: bấm vào ô trên thanh tiến độ. Tự quay về sau PREVIEW_MS.
+const PREVIEW_MS = 60000;
+function resolveView(liveIndex, previewIndex) {
+  if (previewIndex === null || previewIndex === undefined || previewIndex === liveIndex) {
+    return { index: liveIndex, preview: false };
+  }
+  return { index: previewIndex, preview: true };
+}
+function previewExpired(sinceMs, nowMs) {
+  return nowMs - sinceMs >= PREVIEW_MS;
+}
+
+// Giữ màn hình máy chiếu không tắt. Trả về Promise của trình duyệt, hoặc null nếu không hỗ trợ / bị từ chối.
+function requestWakeLock(nav) {
+  try {
+    if (!nav || !nav.wakeLock || typeof nav.wakeLock.request !== 'function') return null;
+    return nav.wakeLock.request('screen');
+  } catch (e) { return null; }
+}
+</script>
+
+<script id="ui">
+// ===== Giao diện: render + vòng lặp đồng hồ + âm báo =====
+let start = null;          // epoch ms lúc bấm Bắt đầu; null = chưa bắt đầu. Chỉ sống trong trang: reload là về null.
+let audioCtx = null;
+let lastKey = null;        // khoá render khối nội dung
+let lastIndex = null;      // để phát âm khi chuyển chặng trong lúc trang đang mở
+let previewIndex = null;   // chặng đang xem trước (null = xem chặng đang chạy)
+let previewSince = 0;
+
+const $ = id => document.getElementById(id);
+const els = {
+  total: $('total'), stageLine: $('stageLine'), clock: $('clock'), question: $('question'),
+  note: $('note'), startBtn: $('startBtn'), right: $('right'), bar: $('bar'),
+  soundHint: $('soundHint'), main: $('main'),
+  previewBar: $('previewBar'), liveInfo: $('liveInfo'), backBtn: $('backBtn')
+};
+const finishedEl = document.createElement('section');
+finishedEl.className = 'finished';
+finishedEl.hidden = true;
+finishedEl.innerHTML = '<div class="big">Hết 240 phút — cảm ơn cả lớp!</div>' +
+  '<p>Ai chưa nộp: push repo cá nhân và nộp link lên LMS / CodeLabs trước hạn — ca sáng 23h59 hôm nay, ca chiều 11h59 trưa mai.</p>' +
+  '<p>Tên repo K5-&lt;L3A/L3B&gt;-DAY11-&lt;HoVaTen&gt;-&lt;MSSV&gt;-Guardrails-HITL-Responsible-AI · có results.json + attack_results.json · không commit .env / API key.</p>';
+els.main.appendChild(finishedEl);
+
+function ensureAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!audioCtx) audioCtx = new Ctx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) { audioCtx = null; }
+}
+
+function beep() {
+  try {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    [0, 0.25].forEach(offset => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = 880;
+      gain.gain.value = 0.15;
+      osc.connect(gain).connect(audioCtx.destination);
+      const t = audioCtx.currentTime + offset;
+      osc.start(t);
+      osc.stop(t + 0.15);
+    });
+  } catch (e) { /* im lặng */ }
+}
+
+function buildBar() {
+  els.bar.innerHTML = SCHEDULE.map((s, i) =>
+    '<div style="flex:' + s.minutes + '"' +
+    (s.milestone ? ' data-m="' + s.milestone + ' · ' + formatHM(stageStartMinute(i + 1)) + '"' : '') +
+    ' title="' + s.title + ' (' + s.minutes + '\')"><i class="fill"></i><span>' + s.short + '</span></div>'
+  ).join('');
+}
+
+function list(items) {
+  return '<ul>' + items.map(d => '<li>' + d + '</li>').join('') + '</ul>';
+}
+
+function renderContent(st, view, sub) {
+  const idx = view.index;
+  const s = SCHEDULE[idx];
+  const isFinished = st.finished;
+  const showFinished = isFinished && !view.preview;
+  els.main.querySelector('.left').hidden = showFinished;
+  els.right.hidden = showFinished;
+  finishedEl.hidden = !showFinished;
+  els.previewBar.hidden = !view.preview;
+  document.body.classList.toggle('preview', view.preview);
+
+  // Thanh tiến độ: done / now theo giờ thật; peek = chặng đang xem trước
+  Array.from(els.bar.children).forEach((cell, i) => {
+    cell.classList.toggle('done', isFinished || i < st.index);
+    cell.classList.toggle('now', !isFinished && i === st.index);
+    cell.classList.toggle('peek', view.preview && i === idx);
+    if (isFinished || i !== st.index) cell.querySelector('.fill').style.width = '0';
+  });
+  if (showFinished) return;
+
+  const from = stageStartMinute(idx), to = stageStartMinute(idx + 1);
+  els.stageLine.innerHTML = s.title + ' · <span class="pts">' + pointsLabel(s) + '</span>' +
+    '<span class="when">' + formatHM(from) + '–' + formatHM(to) + ' · ' + s.rubric +
+    (s.milestone ? ' · <span class="m">' + s.milestone + '</span> kiểm tra lúc ' + formatHM(to) : '') + '</span>';
+  els.question.textContent = s.goal;
+  els.note.textContent = '⚠ ' + s.trap;
+
+  let html =
+    '<div class="box wide"><h3>Cần làm</h3>' + list(s.todo) + '</div>' +
+    '<div class="box"><h3>Sản phẩm</h3>' + list(s.products) + '</div>' +
+    '<div class="box"><h3>Tự kiểm tra</h3>' + list(s.checks) + '</div>';
+  if (s.scoring) html += '<div class="box wide"><h3>Luật điểm demo</h3>' + list(s.scoring) + '</div>';
+  if (s.key === 'pipeline') {
+    const curSub = view.preview ? -1 : sub;
+    html += '<div class="box wide"><h3>Mốc gợi ý trong CP3</h3><ol class="steps">' +
+      SUBSTEPS.map((x, j) =>
+        '<li class="' + (j === curSub ? 'cur' : (curSub > j ? 'past' : '')) + '"><span class="t">' +
+        formatHM(x.at) + '</span>' + x.label + '</li>').join('') +
+      '</ol></div>';
+  }
+  els.right.innerHTML = html;
+}
+
+function tick() {
+  const started = start !== null;
+  const elapsedMs = started ? Date.now() - start : 0;
+  const st = stateAt(elapsedMs);
+  const sub = started ? currentSubstep(elapsedMs) : -1;
+  if (previewIndex !== null && previewExpired(previewSince, Date.now())) previewIndex = null;
+  const view = resolveView(st.index, previewIndex);
+  const key = view.index + (view.preview ? 'p' : '') + (st.finished ? 'f' : '') + 's' + sub;
+  if (key !== lastKey) { renderContent(st, view, sub); lastKey = key; }
+
+  const justFinished = st.finished && !tick.wasFinished;
+  if (started && lastIndex !== null && (st.index > lastIndex || justFinished)) beep();
+  lastIndex = started ? st.index : null;
+  tick.wasFinished = st.finished;
+
+  els.clock.textContent = view.preview ? formatClock(SCHEDULE[view.index].minutes * MINUTE_MS) : formatClock(st.remainingMs);
+  if (view.preview) {
+    els.liveInfo.textContent = !started ? 'chưa bấm Bắt đầu'
+      : st.finished ? 'đã hết 240 phút'
+      : st.stage.short + ' · còn ' + formatClock(st.remainingMs);
+  }
+  const elapsedFloor = Math.floor(st.elapsedMs / 1000) * 1000;
+  els.total.textContent = 'Đã chạy ' + formatClock(elapsedFloor) + ' / ' + formatClock(TOTAL_MS) +
+    ' · Còn ' + formatClock(st.totalRemainingMs);
+  document.body.classList.toggle('warning', started && st.warning);
+  els.startBtn.hidden = started || view.preview;
+  els.soundHint.hidden = !started || st.finished || (audioCtx !== null && audioCtx.state === 'running');
+
+  if (started && !st.finished) {
+    const fill = els.bar.children[st.index].querySelector('.fill');
+    fill.style.width = (100 * (1 - st.remainingMs / (st.stage.minutes * MINUTE_MS))) + '%';
+  }
+  document.title = st.finished ? 'Hết giờ · Day 11' : formatClock(st.remainingMs) + ' · ' + st.stage.short;
+}
+tick.wasFinished = false;
+
+function keepAwake() {
+  const p = requestWakeLock(navigator);
+  if (p && typeof p.catch === 'function') p.catch(() => {});
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && start !== null) keepAwake();
+});
+
+els.startBtn.addEventListener('click', () => {
+  ensureAudio();
+  keepAwake();
+  start = Date.now();
+  lastIndex = null;
+  tick();
+});
+
+document.addEventListener('click', ensureAudio);
+
+function setPreview(i) {
+  previewIndex = i;
+  previewSince = Date.now();
+  tick();
+}
+function clearPreview() {
+  if (previewIndex === null) return;
+  previewIndex = null;
+  tick();
+}
+els.bar.addEventListener('click', e => {
+  const cell = e.target.closest('.bar > div');
+  if (cell) setPreview(Array.from(els.bar.children).indexOf(cell));
+});
+els.backBtn.addEventListener('click', clearPreview);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') clearPreview(); });
+
+// Lỡ bấm reload / đóng tab khi đang chạy: trình duyệt hiện hộp xác nhận (chữ do trình duyệt quyết định).
+window.addEventListener('beforeunload', e => {
+  if (!shouldWarnOnLeave(start, Date.now())) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
+buildBar();
+tick();
+setInterval(tick, 250);
+</script>
+</body>
+</html>

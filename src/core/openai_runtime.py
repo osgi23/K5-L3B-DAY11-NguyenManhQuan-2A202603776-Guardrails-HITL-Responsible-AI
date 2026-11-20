@@ -62,14 +62,27 @@ class OpenAIRunner:
             return block_msg
 
         client = self._client()
-        completion = client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": agent.instruction},
-                {"role": "user", "content": user_message},
-            ],
-            temperature=self.temperature,
-        )
+        import asyncio
+        import openai
+
+        max_retries = 4
+        for attempt in range(max_retries):
+            try:
+                completion = client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": agent.instruction},
+                        {"role": "user", "content": user_message},
+                    ],
+                    temperature=self.temperature,
+                )
+                break
+            except openai.RateLimitError:
+                if attempt == max_retries - 1:
+                    raise
+                wait_time = 4 * (attempt + 1)
+                print(f"Rate limited by provider, retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
         text = (completion.choices[0].message.content or "").strip()
 
         for hook in self.output_hooks:

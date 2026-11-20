@@ -44,13 +44,24 @@ async def chat_with_agent(agent, runner, user_message: str, session_id=None):
         parts=[types.Part.from_text(text=user_message)],
     )
 
-    final_response = ""
-    async for event in runner.run_async(
-        user_id=user_id, session_id=session.id, new_message=content
-    ):
-        if hasattr(event, "content") and event.content and event.content.parts:
-            for part in event.content.parts:
-                if hasattr(part, "text") and part.text:
-                    final_response += part.text
+    import asyncio
+    max_retries = 4
+    for attempt in range(max_retries):
+        try:
+            final_response = ""
+            async for event in runner.run_async(
+                user_id=user_id, session_id=session.id, new_message=content
+            ):
+                if hasattr(event, "content") and event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            final_response += part.text
 
-    return final_response, session
+            return final_response, session
+        except Exception as e:
+            if ("503" in str(e) or "429" in str(e)) and attempt < max_retries - 1:
+                wait_sec = 3 * (attempt + 1)
+                print(f"[chat_with_agent] Transient error {type(e).__name__}, retrying in {wait_sec}s...")
+                await asyncio.sleep(wait_sec)
+                continue
+            raise
